@@ -115,6 +115,23 @@ select:disabled{opacity:.5;cursor:not-allowed}textarea{min-height:110px;resize:v
 .switch #star-4{width:18px;top:0;left:18px;animation-delay:1.3s}
 @keyframes cb-twinkle{0%{transform:scale(1)}40%{transform:scale(1.2)}80%{transform:scale(.8)}100%{transform:scale(1)}}
 @keyframes cb-rotate{0%{transform:translateX(26px) rotate(0)}100%{transform:translateX(26px) rotate(360deg)}}
+
+/* Animated "Escalation Dashboard" button (Uiverse.io by gharsh11032000, recoloured for Carrybee, small size) */
+.animated-button{position:relative;display:inline-flex;align-items:center;align-self:center;margin:0 0 8px auto;padding:9px 34px;border:2px solid transparent;font:600 13px 'Inter',sans-serif;line-height:1.2;white-space:nowrap;text-decoration:none;background:transparent;border-radius:100px;color:var(--text);box-shadow:0 0 0 2px var(--brand);cursor:pointer;overflow:hidden;transition:all .6s cubic-bezier(.23,1,.32,1)}
+.animated-button svg{position:absolute;width:16px;fill:var(--brand);z-index:9;transition:all .8s cubic-bezier(.23,1,.32,1)}
+:root:not([data-theme=dark]) .animated-button svg{fill:var(--ink)}
+.animated-button .arr-1{right:11px}
+.animated-button .arr-2{left:-25%}
+.animated-button .circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;background:var(--brand);border-radius:50%;opacity:0;transition:all .8s cubic-bezier(.23,1,.32,1)}
+.animated-button .text{position:relative;z-index:1;transform:translateX(-8px);transition:all .8s cubic-bezier(.23,1,.32,1)}
+.animated-button:hover,.animated-button:focus-visible{box-shadow:0 0 0 7px transparent;color:#333132;border-radius:10px}
+.animated-button:hover .arr-1{right:-25%}
+.animated-button:hover .arr-2{left:11px}
+.animated-button:hover .text{transform:translateX(8px)}
+.animated-button:hover svg,.animated-button:focus-visible svg{fill:#333132}
+.animated-button:active{scale:.95;box-shadow:0 0 0 3px var(--brand)}
+.animated-button:hover .circle,.animated-button:focus-visible .circle{width:240px;height:240px;opacity:1}
+@media (prefers-reduced-motion:reduce){.animated-button,.animated-button *{transition:none!important}}
 </style>
 </head>
 <body>
@@ -300,7 +317,7 @@ function App(){
     <div className="app-tabs" role="tablist">
       <button type="button" role="tab" aria-selected=${!parcel} className=${'app-tab'+(!parcel?' active':'')} id="tabForm" onClick=${()=>setTab('form')}>Log an Issue</button>
       <button type="button" role="tab" aria-selected=${parcel} className=${'app-tab'+(parcel?' active':'')} id="tabParcel" onClick=${()=>setTab('parcel')}>Parcel Journey</button>
-        <a href="dashboard.html" className="app-tab" style=${{textDecoration:'none',marginLeft:'auto'}}>Escalation Dashboard →</a>
+        <a href="dashboard.html" className="animated-button"><svg viewBox="0 0 24 24" className="arr-2" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg><span className="text">Escalation Dashboard</span><span className="circle"></span><svg viewBox="0 0 24 24" className="arr-1" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg></a>
     </div>
     <div id="panel-parcel" hidden=${!parcel}><${PjRoot}/></div>
     <div id="panel-form" hidden=${parcel}><${IssueForm} token=${token} onExpire=${logout}/></div>
