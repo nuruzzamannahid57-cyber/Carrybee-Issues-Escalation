@@ -300,7 +300,7 @@ function App(){
     <div className="app-tabs" role="tablist">
       <button type="button" role="tab" aria-selected=${!parcel} className=${'app-tab'+(!parcel?' active':'')} id="tabForm" onClick=${()=>setTab('form')}>Log an Issue</button>
       <button type="button" role="tab" aria-selected=${parcel} className=${'app-tab'+(parcel?' active':'')} id="tabParcel" onClick=${()=>setTab('parcel')}>Parcel Journey</button>
-        <a href="dashboard.html" className="app-tab" style=${{textDecoration:'none',marginLeft:'auto'}}>Escalation Dashboard &rarr;</a>
+        <a href="dashboard.html" className="app-tab" style=${{textDecoration:'none',marginLeft:'auto'}}>Escalation Dashboard →</a>
     </div>
     <div id="panel-parcel" hidden=${!parcel}><${PjRoot}/></div>
     <div id="panel-form" hidden=${parcel}><${IssueForm} token=${token} onExpire=${logout}/></div>
@@ -311,4 +311,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
 </script>
 </body>
 </html>
-
