@@ -307,6 +307,27 @@
   .lightbox-close{position:absolute;top:18px;right:22px;background:none;border:none;color:#fff;font-size:28px;line-height:1;cursor:pointer;opacity:.8;}
   .lightbox-close:hover{opacity:1;}
   .attach-broken{width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--surface-2,#eee);border:1px dashed var(--border,#ccc);border-radius:6px;font-size:11px;}
+
+  /* ---- Bold, colourful headings ---- */
+  :root{--kam:#FFCC00;--kam-soft:#FFCC0022;--ops:#3ED6C5;--ops-soft:#3ED6C51F;--h-grad:linear-gradient(90deg,#FFCC00,#FF8A3D 55%,#FF5C7A);}
+  :root[data-theme="light"]{--kam:#9A7400;--kam-soft:#FFCC0038;--ops:#0B7F73;--ops-soft:#0B7F731A;--h-grad:linear-gradient(90deg,#B07A00,#D9541E 60%,#B0184B);}
+  h1{font-weight:800!important;background:var(--h-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;}
+  .panel h2,.perf-section-title{font-family:'Inter',sans-serif;font-weight:800;font-size:18px;letter-spacing:-.01em;color:var(--accent);padding-left:12px;border-left:4px solid var(--brand);line-height:1.2;}
+  .panel h2#issueLogTitle{background:var(--h-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;display:inline-block;}
+  .modal-box h3{font-weight:800;color:var(--accent);}
+  .dt-label{color:var(--accent);}
+  .tab-btn{font-weight:700;}
+
+  /* ---- Escalation log: KAM part vs OPS part ---- */
+  thead tr.grp th{padding:9px 10px;text-align:center;font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;border-bottom:0;}
+  thead th.g-kam{background:var(--kam-soft);color:var(--kam);border-top:3px solid var(--kam);}
+  thead th.g-ops{background:var(--ops-soft);color:var(--ops);border-top:3px solid var(--ops);border-left:3px solid var(--bg);}
+  thead th.g-act{color:var(--text-faint);border-top:3px solid var(--border);vertical-align:bottom;}
+  thead th.c-kam{border-bottom:2px solid var(--kam);padding-top:8px;}
+  thead th.c-ops{color:var(--ops);background:var(--ops-soft);border-bottom:2px solid var(--ops);border-left:3px solid var(--bg);padding-top:8px;}
+  tbody td.c-ops{background:var(--ops-soft);border-left:3px solid var(--ops);min-width:170px;}
+  tbody td.c-ops .details-text{color:var(--text);}
+  tbody td.c-kam-d{background:var(--kam-soft);}
 </style>
 </head>
 <body>
@@ -379,7 +400,7 @@
       <h3>What do you want to do?</h3>
       <p id="actionSub">Pick one for this issue.</p>
       <button class="act-choice" id="actionClose" type="button"><b>Close issue</b><span>The hub's answer solved it. You will confirm the merchant was informed.</span></button>
-      <button class="act-choice reprocess" id="actionReprocess" type="button"><b>Re-process</b><span>Not solved. It goes back to the hub as a new Open issue and the escalation clock starts again.</span></button>
+      <button class="act-choice reprocess" id="actionReprocess" type="button"><b>Reopen</b><span>Not solved. It goes back to the hub as a new Open issue and the escalation clock starts again.</span></button>
       <button class="act-choice ir" id="actionIR" type="button"><b>Send to IR</b><span>Email the Issue Resolution team with your details. They can reply to you directly.</span></button>
       <button class="link" id="actionCancel" type="button" style="margin-top:4px;">Cancel</button>
     </div>
@@ -387,7 +408,7 @@
 
   <div id="reprocessOverlay" class="modal-overlay" style="display:none;">
     <div class="modal-box">
-      <h3>Re-process this issue?</h3>
+      <h3>Reopen this issue?</h3>
       <p>It goes back to <b id="rpHub">the hub</b> as Open. Tell them what is still wrong.</p>
       <textarea id="rpReason" maxlength="500" placeholder="e.g. Merchant says the parcel was not picked up"></textarea>
       <div class="modal-actions" style="margin-top:14px;">
@@ -439,7 +460,8 @@
 
   <div id="view-dashboard">
   <div class="session-row">
-    <a href="index.html" class="app-tab" style="margin-right:auto; text-decoration:none; color:var(--text); font-weight:600;">&larr; Log an Issue</a>`n      <span id="sessionLabel"></span>
+    <a href="index.html" class="app-tab" style="margin-right:auto; text-decoration:none; color:var(--text); font-weight:600;">&larr; Log an Issue</a>
+      <span id="sessionLabel"></span>
     <button class="link" id="btnLogout">Sign out</button>
   </div>
 
@@ -477,9 +499,9 @@
     <div class="table-scroll">
       <table>
         <thead>
+          <tr class="grp"><th class="g-kam" colspan="11">KAM part &middot; logged by KAM</th><th class="g-ops">OPS part &middot; reply</th><th class="g-act" rowspan="2">Action</th></tr>
           <tr>
-            <th>Logged</th><th>Consignment / Merchant</th><th>Channel</th><th>Zone</th>
-            <th>Hub</th><th>Category</th><th>Subcategory</th><th>Status</th><th>Flag</th><th>Logged by</th><th>Remarks</th><th>Details</th><th>Action</th>
+            <th class="c-kam">Logged</th><th class="c-kam">Consignment / Merchant</th><th class="c-kam">Channel</th><th class="c-kam">Zone</th><th class="c-kam">Hub</th><th class="c-kam">Category</th><th class="c-kam">Subcategory</th><th class="c-kam">Status</th><th class="c-kam">Flag</th><th class="c-kam">Logged by</th><th class="c-kam">Details</th><th class="c-ops">Remarks</th>
           </tr>
         </thead>
         <tbody id="issueTableBody"></tbody>
@@ -496,11 +518,11 @@
       <div class="table-scroll">
         <table>
           <thead>
-            <tr>
-              <th>Logged</th><th>Consignment / Merchant</th><th>Channel</th><th>Zone</th>
-              <th>Hub</th><th>Category</th><th>Subcategory</th><th>Status</th><th>Flag</th><th>Logged by</th><th>Remarks</th><th>Details</th><th>Action</th>
-            </tr>
-          </thead>
+          <tr class="grp"><th class="g-kam" colspan="11">KAM part &middot; logged by KAM</th><th class="g-ops">OPS part &middot; reply</th><th class="g-act" rowspan="2">Action</th></tr>
+          <tr>
+            <th class="c-kam">Logged</th><th class="c-kam">Consignment / Merchant</th><th class="c-kam">Channel</th><th class="c-kam">Zone</th><th class="c-kam">Hub</th><th class="c-kam">Category</th><th class="c-kam">Subcategory</th><th class="c-kam">Status</th><th class="c-kam">Flag</th><th class="c-kam">Logged by</th><th class="c-kam">Details</th><th class="c-ops">Remarks</th>
+          </tr>
+        </thead>
           <tbody id="flaggedTableBody"></tbody>
         </table>
       </div>
@@ -863,13 +885,13 @@
         <td><span class="badge ${statusClass(i.status)}">${escapeHtml(i.status)}</span></td>
         <td>${renderFlag(i)}</td>
         <td>${escapeHtml(i.logged_by_name || i.logged_by)}</td>
-        <td class="details-cell"><div class="details-text">${escapeHtml(i.remarks || '—')}</div></td>
-        <td class="details-cell"><div class="details-text">${escapeHtml(i.details)}</div>${renderAttachments(i)}</td>
+        <td class="details-cell c-kam-d"><div class="details-text">${escapeHtml(i.details)}</div>${renderAttachments(i)}</td>
+        <td class="details-cell c-ops"><div class="details-text">${escapeHtml(i.remarks || '—')}</div></td>
         <td>${i.closed_by ? '<div style="color:var(--green);font-weight:600;font-size:12px;margin-bottom:4px;">✓ Closed</div>' : ''}${canAct ? `<button class="ghost" data-role="action-btn" style="padding:7px 14px;">Action</button>` : (i.closed_by ? '' : '—')}</td>
       `;
-      tr.querySelector('.details-text').addEventListener('click', (e)=>{
+      tr.querySelectorAll('.details-text').forEach(el => el.addEventListener('click', (e)=>{
         e.target.classList.toggle('expanded');
-      });
+      }));
       const hubCell = tr.querySelector('.hub-cell');
       if(i.hub){
         hubCell.querySelector('.hub-link').addEventListener('click', ()=> toggleHubContacts(hubCell, i.hub));
@@ -932,9 +954,9 @@
     renderTable(flagged, 'flaggedTableBody', 'flaggedEmptyState');
   }
 
-  // ---------- Who may act, history popup, Action popup (Close / Re-process) ----------
+  // ---------- Who may act, history popup, Action popup (Close / Reopen) ----------
   // Only the KAM who logged the issue can act on it, and only once the hub has
-  // replied (a remark exists). Re-process stays available after a close so a
+  // replied (a remark exists). Reopen stays available after a close so a
   // wrongly-closed issue can be sent back.
   function canActOn(i){
     return !!(i.remarks && (i.logged_by || '').toLowerCase() === (authEmail || '').toLowerCase());
@@ -971,7 +993,7 @@
       title = `Sent to IR team by ${who}`;
       body = escapeHtml(d.note || '');
     }else if(e.type === 'reprocessed'){
-      title = `Re-processed by ${who}. Sent back to ${escapeHtml(d.hub || 'the hub')}`;
+      title = `Reopened by ${who}. Sent back to ${escapeHtml(d.hub || 'the hub')}`;
       body = escapeHtml('Reason: ' + (d.reason || '—')) + (d.previousRemarks ? '\n' + escapeHtml('Hub had said: ' + d.previousRemarks) : '');
     }
     return `<div class="tl-item t-${escapeHtml(e.type)}"><div class="tl-title">${title}</div><div class="tl-when">${escapeHtml(fmtFull(e.ts))}</div>${body ? `<div class="tl-body">${body}</div>` : ''}</div>`;
@@ -1018,7 +1040,7 @@
   $('dtClose').addEventListener('click', closeDetail);
   $('detailOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'detailOverlay') closeDetail(); });
 
-  // Action popup: Close issue or Re-process
+  // Action popup: Close issue, Reopen or Send to IR
   let actionId = null;
   function openActionModal(id){
     const i = findIssue(id);
@@ -1080,13 +1102,13 @@
   $('rpConfirm').addEventListener('click', async ()=>{
     const reason = $('rpReason').value.trim();
     const msg = $('rpMsg');
-    if(reason.length < 3){ msg.textContent = 'Write why it is being re-processed.'; msg.className = 'status-msg err'; return; }
+    if(reason.length < 3){ msg.textContent = 'Write why it is being reopened.'; msg.className = 'status-msg err'; return; }
     msg.textContent = 'Sending…'; msg.className = 'status-msg';
     $('rpConfirm').disabled = true;
     try{
       const res = await authedFetch(`/api/issues/${encodeURIComponent(actionId)}/reprocess`, { method:'PATCH', body: JSON.stringify({ reason }) });
       const data = await res.json();
-      if(!res.ok){ msg.textContent = data.error || 'Could not re-process.'; msg.className = 'status-msg err'; return; }
+      if(!res.ok){ msg.textContent = data.error || 'Could not reopen.'; msg.className = 'status-msg err'; return; }
       closeReprocess(); closeDetail(); actionId = null;
       await loadAndRenderDashboard();
     }catch(err){
@@ -1154,9 +1176,9 @@
 
   $('btnExport').addEventListener('click', ()=>{
     const filtered = issuesForView();
-    const headers = ['Logged','Consignment/Merchant','Channel','Zone','Hub','Category','Subcategory','Issue Status','Logged By','Remarks','Details'];
+    const headers = ['Logged','Consignment/Merchant','Channel','Zone','Hub','Category','Subcategory','Issue Status','Logged By','Details','Remarks'];
     const rows = filtered.map(i=>[
-      fmtTime(i.ts), i.consignment, i.channel, i.zone, i.hub, i.category, i.subcategory, i.status, (i.logged_by_name || i.logged_by), (i.remarks || ''), i.details
+      fmtTime(i.ts), i.consignment, i.channel, i.zone, i.hub, i.category, i.subcategory, i.status, (i.logged_by_name || i.logged_by), i.details, (i.remarks || '')
     ]);
     const csv = [headers, ...rows].map(r=>
       r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')
@@ -1503,4 +1525,3 @@
 </script>
 </body>
 </html>
-
