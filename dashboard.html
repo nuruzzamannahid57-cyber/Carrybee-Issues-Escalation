@@ -1264,6 +1264,25 @@
     return (h/24).toFixed(1) + 'd';
   }
   function avgOf(arr){ return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : null; }
+  // Phase timings for one issue. openToIP = Open -> first "In Progress";
+  // ipToSolved = "In Progress" -> Resolved/closed. Either is null when that
+  // step never happened (e.g. Ops resolved it straight from Open) or the issue
+  // predates history tracking, so those issues are left out of the averages
+  // instead of being counted as 0.
+  function issueTimings(i){
+    const start = i.cycle_start || i.ts;
+    const solvedAt = i.resolved_at || (i.status === 'Resolved' ? i.updated_at : null);
+    const ipAt = i.in_progress_at || null;
+    return {
+      openToIP: ipAt ? hoursBetween(start, ipAt) : null,
+      ipToSolved: (ipAt && solvedAt) ? hoursBetween(ipAt, solvedAt) : null
+    };
+  }
+  function pushTimings(target, i){
+    const t = issueTimings(i);
+    if(t.openToIP != null) target.openToIPTimes.push(t.openToIP);
+    if(t.ipToSolved != null) target.ipToSolvedTimes.push(t.ipToSolved);
+  }
   function ratePillClass(rate){ return rate >= 70 ? 'hi' : rate >= 40 ? 'mid' : 'lo'; }
   function medalClass(idx){ return idx === 0 ? 'r1' : idx === 1 ? 'r2' : idx === 2 ? 'r3' : ''; }
   function chgHtml(diff){
@@ -1277,9 +1296,10 @@
     const by = {};
     issues.forEach(i=>{
       const name = i.logged_by_name || i.logged_by || 'Unknown';
-      if(!by[name]) by[name] = { name, total:0, solved:0 };
+      if(!by[name]) by[name] = { name, total:0, solved:0, closed:0 };
       by[name].total += 1;
       if(i.status === 'Resolved') by[name].solved += 1;
+      if(i.closed_by) by[name].closed += 1;
     });
     return Object.values(by).map(k=>({
       ...k, open: k.total - k.solved, rate: k.total ? Math.round((k.solved/k.total)*100) : 0
@@ -1294,9 +1314,10 @@
       const d = new Date(i.ts);
       if(isNaN(d.getTime())) return;
       const { key, label, sortKey } = periodKeyLabel(d, granularity);
-      if(!buckets[key]) buckets[key] = { key, label, sortKey, escalated:0, solved:0 };
+      if(!buckets[key]) buckets[key] = { key, label, sortKey, escalated:0, solved:0, closed:0 };
       buckets[key].escalated += 1;
       if(i.status === 'Resolved') buckets[key].solved += 1;
+      if(i.closed_by) buckets[key].closed += 1;
     });
     return Object.values(buckets).sort((a,b)=> b.sortKey - a.sortKey);
   }
@@ -1313,13 +1334,14 @@
         <td>${escapeHtml(b.label)}</td>
         <td class="num-cell">${b.escalated}</td>
         <td class="num-cell">${b.solved}</td>
+        <td class="num-cell">${b.closed}</td>
         <td><span class="rate-pill ${ratePillClass(rate)}">${rate}%</span></td>
         <td>${prev ? chgHtml(b.escalated - prev.escalated) : '<span class="chg flat">—</span>'}</td>
       </tr>`;
     }).join('');
     return `<div class="perf-table-wrap">
       <table class="perf-table">
-        <thead><tr><th>Day</th><th>Escalated</th><th>Solved</th><th>Solve rate</th><th>Chg vs prior</th></tr></thead>
+        <thead><tr><th>Day</th><th>Escalated</th><th>Solved</th><th>Perm. closed</th><th>Solve rate</th><th>Chg vs prior</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -1329,6 +1351,7 @@
     const kamStats = computeKamStats(issues);
     const total = issues.length;
     const totalSolved = kamStats.reduce((s,k)=>s+k.solved,0);
+    const totalClosed = kamStats.reduce((s,k)=>s+k.closed,0);
     const kamCount = kamStats.length;
     const overallRate = total ? Math.round((totalSolved/total)*100) : 0;
     const content = $('perfContent');
@@ -1339,6 +1362,7 @@
       <div class="stat-grid">
         <div class="stat-card"><div class="num">${total}</div><div class="lbl">Total issues</div></div>
         <div class="stat-card"><div class="num">${totalSolved}</div><div class="lbl">Solved</div></div>
+        <div class="stat-card"><div class="num">${totalClosed}</div><div class="lbl">Permanently closed</div></div>
         <div class="stat-card"><div class="num">${total-totalSolved}</div><div class="lbl">Pending</div></div>
         <div class="stat-card"><div class="num">${kamCount}</div><div class="lbl">KAMs reporting</div></div>
         <div class="stat-card"><div class="num">${overallRate}%</div><div class="lbl">Overall solve rate</div></div>
@@ -1347,7 +1371,7 @@
       <div class="perf-section-title">KAM Leaderboard (total)</div>
       <div class="perf-table-wrap">
         <table class="perf-table">
-          <thead><tr><th>#</th><th>KAM</th><th>Escalated</th><th>Solved</th><th>Pending</th><th>Solve rate</th></tr></thead>
+          <thead><tr><th>#</th><th>KAM</th><th>Escalated</th><th>Solved</th><th>Perm. closed</th><th>Pending</th><th>Solve rate</th></tr></thead>
           <tbody>
             ${kamStats.map((k, idx) => `
               <tr>
@@ -1355,6 +1379,7 @@
                 <td>${escapeHtml(k.name)}</td>
                 <td class="num-cell">${k.total}</td>
                 <td class="num-cell">${k.solved}</td>
+                <td class="num-cell">${k.closed}</td>
                 <td class="num-cell">${k.open}</td>
                 <td><span class="rate-pill ${ratePillClass(k.rate)}">${k.rate}%</span></td>
               </tr>
@@ -1397,8 +1422,9 @@
     const by = {};
     issues.forEach(i=>{
       const hub = i.hub && i.hub !== '—' ? i.hub : 'Unassigned';
-      if(!by[hub]) by[hub] = { hub, total:0, solved:0, remarks:0, solveTimes:[] };
+      if(!by[hub]) by[hub] = { hub, total:0, solved:0, remarks:0, solveTimes:[], openToIPTimes:[], ipToSolvedTimes:[] };
       by[hub].total += 1;
+      pushTimings(by[hub], i);
       if(i.remarks && String(i.remarks).trim()) by[hub].remarks += 1;
       if(i.status === 'Resolved'){
         by[hub].solved += 1;
@@ -1406,7 +1432,8 @@
       }
     });
     return Object.values(by).map(h=>({
-      ...h, rate: h.total ? Math.round((h.solved/h.total)*100) : 0, avgSolveHours: avgOf(h.solveTimes)
+      ...h, rate: h.total ? Math.round((h.solved/h.total)*100) : 0, avgSolveHours: avgOf(h.solveTimes),
+      avgOpenToIP: avgOf(h.openToIPTimes), avgIPToSolved: avgOf(h.ipToSolvedTimes)
     })).sort((a,b)=> b.total - a.total);
   }
 
@@ -1418,15 +1445,16 @@
       const d = new Date(i.ts);
       if(isNaN(d.getTime())) return;
       const { key, label, sortKey } = periodKeyLabel(d, granularity);
-      if(!buckets[key]) buckets[key] = { key, label, sortKey, total:0, solved:0, remarks:0, solveTimes:[] };
+      if(!buckets[key]) buckets[key] = { key, label, sortKey, total:0, solved:0, remarks:0, solveTimes:[], openToIPTimes:[], ipToSolvedTimes:[] };
       buckets[key].total += 1;
+      pushTimings(buckets[key], i);
       if(i.remarks && String(i.remarks).trim()) buckets[key].remarks += 1;
       if(i.status === 'Resolved'){
         buckets[key].solved += 1;
         if(i.updated_at){ const h = hoursBetween(i.ts, i.updated_at); if(h != null) buckets[key].solveTimes.push(h); }
       }
     });
-    return Object.values(buckets).map(b=>({ ...b, avgSolveHours: avgOf(b.solveTimes) })).sort((a,b)=> b.sortKey - a.sortKey);
+    return Object.values(buckets).map(b=>({ ...b, avgSolveHours: avgOf(b.solveTimes), avgOpenToIP: avgOf(b.openToIPTimes), avgIPToSolved: avgOf(b.ipToSolvedTimes) })).sort((a,b)=> b.sortKey - a.sortKey);
   }
 
   function renderHubTrendTable(issues, period, hubFilter){
@@ -1441,13 +1469,15 @@
         <td class="num-cell">${b.total}</td>
         <td class="num-cell">${b.solved}</td>
         <td class="num-cell">${fmtHours(b.avgSolveHours)}</td>
+        <td class="num-cell">${fmtHours(b.avgOpenToIP)}</td>
+        <td class="num-cell">${fmtHours(b.avgIPToSolved)}</td>
         <td class="num-cell">${b.remarks}</td>
         <td>${prev ? chgHtml(b.total - prev.total) : '<span class="chg flat">—</span>'}</td>
       </tr>`;
     }).join('');
     return `<div class="perf-table-wrap">
       <table class="perf-table">
-        <thead><tr><th>Day</th><th>Issues</th><th>Solved</th><th>Avg solve time</th><th>Remarks</th><th>Chg vs prior</th></tr></thead>
+        <thead><tr><th>Day</th><th>Issues</th><th>Solved</th><th>Avg solve time</th><th>Open → In Progress</th><th>In Progress → Solved</th><th>Remarks</th><th>Chg vs prior</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
@@ -1461,6 +1491,8 @@
     const hubCount = hubStats.length;
     const overallRate = total ? Math.round((totalSolved/total)*100) : 0;
     const overallAvgSolve = avgOf(hubStats.flatMap(h=>h.solveTimes));
+    const overallOpenToIP = avgOf(hubStats.flatMap(h=>h.openToIPTimes));
+    const overallIPToSolved = avgOf(hubStats.flatMap(h=>h.ipToSolvedTimes));
     const content = $('perfContent');
     if(!hubCount){ content.innerHTML = `<div class="empty-state">No issues logged yet.</div>`; return; }
     if(activeHubFilter !== 'all' && !hubStats.find(h=>h.hub===activeHubFilter)) activeHubFilter = 'all';
@@ -1471,6 +1503,8 @@
         <div class="stat-card"><div class="num">${totalSolved}</div><div class="lbl">Solved</div></div>
         <div class="stat-card"><div class="num">${hubCount}</div><div class="lbl">Hubs reporting</div></div>
         <div class="stat-card"><div class="num">${fmtHours(overallAvgSolve)}</div><div class="lbl">Avg solve time</div></div>
+        <div class="stat-card"><div class="num">${fmtHours(overallOpenToIP)}</div><div class="lbl">Avg Open → In Progress</div></div>
+        <div class="stat-card"><div class="num">${fmtHours(overallIPToSolved)}</div><div class="lbl">Avg In Progress → Solved</div></div>
         <div class="stat-card"><div class="num">${totalRemarks}</div><div class="lbl">Remarks logged</div></div>
         <div class="stat-card"><div class="num">${overallRate}%</div><div class="lbl">Overall solve rate</div></div>
       </div>
@@ -1478,7 +1512,7 @@
       <div class="perf-section-title">Hub Leaderboard (total)</div>
       <div class="perf-table-wrap">
         <table class="perf-table">
-          <thead><tr><th>#</th><th>Hub</th><th>Issues</th><th>Solved</th><th>Avg solve time</th><th>Remarks</th><th>Solve rate</th></tr></thead>
+          <thead><tr><th>#</th><th>Hub</th><th>Issues</th><th>Solved</th><th>Avg solve time</th><th>Open → In Progress</th><th>In Progress → Solved</th><th>Remarks</th><th>Solve rate</th></tr></thead>
           <tbody>
             ${hubStats.map((h, idx) => `
               <tr>
@@ -1487,6 +1521,8 @@
                 <td class="num-cell">${h.total}</td>
                 <td class="num-cell">${h.solved}</td>
                 <td class="num-cell">${fmtHours(h.avgSolveHours)}</td>
+                <td class="num-cell">${fmtHours(h.avgOpenToIP)}</td>
+                <td class="num-cell">${fmtHours(h.avgIPToSolved)}</td>
                 <td class="num-cell">${h.remarks}</td>
                 <td><span class="rate-pill ${ratePillClass(h.rate)}">${h.rate}%</span></td>
               </tr>
