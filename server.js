@@ -493,8 +493,23 @@ app.post('/api/issues', requireAuthOrService, async (req, res) => {
 
 app.get('/api/issues', requireAuth, async (req, res) => {
   try {
+    // Performance timings come from the history table (issues has no
+    // "became In Progress" column). Only events after the latest Reopen count,
+    // so a reopened issue is timed from when it came back, not from day one.
+    //   cycle_start    = latest 'reprocessed' event, else the issue's own ts
+    //   in_progress_at = first Ops update to "In Progress" in this cycle
+    //   resolved_at    = first Resolved / KAM-closed event in this cycle
     const result = await db.execute(`
-      SELECT issues.*, COALESCE(users.name, issues.logged_by) AS logged_by_name
+      SELECT issues.*, COALESCE(users.name, issues.logged_by) AS logged_by_name,
+        COALESCE((SELECT MAX(r.ts) FROM issue_events r WHERE r.issue_id = issues.id AND r.type = 'reprocessed'), issues.ts) AS cycle_start,
+        (SELECT MIN(e.ts) FROM issue_events e
+          WHERE e.issue_id = issues.id AND e.type = 'ops_update' AND e.detail LIKE '%"status":"In Progress"%'
+            AND e.ts >= COALESCE((SELECT MAX(r.ts) FROM issue_events r WHERE r.issue_id = issues.id AND r.type = 'reprocessed'), issues.ts)
+        ) AS in_progress_at,
+        (SELECT MIN(e.ts) FROM issue_events e
+          WHERE e.issue_id = issues.id AND e.type IN ('resolved', 'closed')
+            AND e.ts >= COALESCE((SELECT MAX(r.ts) FROM issue_events r WHERE r.issue_id = issues.id AND r.type = 'reprocessed'), issues.ts)
+        ) AS resolved_at
       FROM issues
       LEFT JOIN users ON users.email = issues.logged_by
       ORDER BY issues.ts DESC
