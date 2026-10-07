@@ -849,15 +849,34 @@
     if (!i.attachments) return [];
     try { return JSON.parse(i.attachments) || []; } catch { return []; }
   }
+  const ATT_REG = new Map();
+  const ATT_ICON = { pdf:'📕', doc:'📘', sheet:'📗', csv:'📊', slides:'📙', file:'📎' };
+  const attEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function renderAttachments(i){
     const list = parseAttachments(i);
     if (!list.length) return '';
-    return `<div class="attach-row" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;">` +
-      list.map((a, idx) => a.type === 'photo'
-        ? `<img src="${a.dataUrl}" alt="attachment" class="attach-thumb" data-issue="${i.id}" data-idx="${idx}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border,#ddd);cursor:pointer;" onerror="this.outerHTML='<div class=&quot;attach-broken&quot; title=&quot;Photo failed to load&quot;>🖼️ ⚠️</div>';">`
-        : `<audio controls src="${a.dataUrl}" style="height:30px;max-width:160px;"></audio>`
-      ).join('') + `</div>`;
+    return `<div class="attach-row" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">` +
+      list.map((a, idx) => {
+        const key = i.id + ':' + idx; ATT_REG.set(key, a);
+        if (a.type === 'photo') return `<img src="${a.dataUrl}" alt="attachment" class="attach-thumb" data-issue="${i.id}" data-idx="${idx}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border,#ddd);cursor:pointer;" onerror="this.outerHTML='<div class=&quot;attach-broken&quot; title=&quot;Photo failed to load&quot;>🖼️ ⚠️</div>';">`;
+        if (a.type === 'audio') return `<audio controls src="${a.dataUrl}" style="height:30px;max-width:180px;"></audio>`;
+        if (a.type === 'video') return `<video controls preload="metadata" src="${a.dataUrl}" style="width:160px;height:90px;border-radius:6px;background:#000;border:1px solid var(--border,#ddd);"></video>`;
+        return `<button type="button" class="attach-file" data-key="${attEsc(key)}" title="${attEsc(a.filename || 'File')}" style="display:inline-flex;align-items:center;gap:6px;max-width:180px;height:44px;padding:0 10px;border:1px solid var(--border,#ddd);border-radius:6px;background:var(--surface-2,#eee);color:inherit;font:inherit;font-size:12px;cursor:pointer;"><span>${ATT_ICON[a.type] || ATT_ICON.file}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${attEsc(a.filename || 'File')}</span></button>`;
+      }).join('') + `</div>`;
   }
+  // PDF opens in a new tab, Word/Excel/CSV/PowerPoint download — built from a Blob, never by navigating to the long data: URI.
+  document.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.attach-file'); if(!btn) return;
+    const a = ATT_REG.get(btn.dataset.key); if(!a) return;
+    const w = a.type === 'pdf' ? window.open('about:blank', '_blank') : null;
+    try{
+      const raw = await (await fetch(a.dataUrl)).blob();
+      const url = URL.createObjectURL(new Blob([raw], { type: a.mimeType || raw.type }));
+      if (w) { w.location = url; }
+      else { const l = document.createElement('a'); l.href = url; l.download = a.filename || 'attachment'; document.body.appendChild(l); l.click(); l.remove(); }
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+    }catch{ if (w) w.close(); alert('Could not open this file.'); }
+  });
 
   // Opens a photo attachment full-size in an in-app lightbox rather than
   // navigating the tab to its (very long) data: URI — top-level navigation
